@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:music_app/bottom_controls.dart';
 import 'package:music_app/songs.dart';
 import 'package:music_app/theme.dart';
+import 'package:fluttery/gestures.dart';
 
 void main() => runApp(MyApp());
 
@@ -28,6 +29,7 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
+
 
   @override
   Widget build(BuildContext context) {
@@ -54,27 +56,7 @@ class _MyHomePageState extends State<MyHomePage> {
             children: <Widget>[
               /// Seek bar
               Expanded(
-                child: Center(
-                  child: Container(
-                    width: 140.0,
-                    height: 140.0,
-                    child: RadialSeekBar(
-                      trackColor: const Color(0xFFDDDDDD),
-                      progressPercent: 0.25,
-                      progressColor: accentColor,
-                      thumbPosition: 0.25,
-                      thumbColor: lightAccentColor,
-                      innerPadding: const EdgeInsets.all(10.0),
-                      child: ClipOval(
-                        clipper: CircleClipper(),
-                        child: Image.network(
-                          demoPlaylist.songs[0].albumArtUrl,
-                          fit: BoxFit.cover,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
+                child: RadialSeekBar(),
               ),
 
               /// Visualizer
@@ -92,7 +74,7 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 }
 
-class RadialSeekBar extends StatefulWidget {
+class RadialProgressBar extends StatefulWidget {
 
   final double trackWidth;
   final Color trackColor;
@@ -106,7 +88,7 @@ class RadialSeekBar extends StatefulWidget {
   final EdgeInsets innerPadding;
   final Widget child;
 
-  RadialSeekBar({
+  RadialProgressBar({
     this.trackWidth = 3.0,
     this.trackColor = Colors.grey,
     this.progressWidth = 5.0,
@@ -121,10 +103,10 @@ class RadialSeekBar extends StatefulWidget {
   });
 
   @override
-  _RadialSeekBarState createState() => _RadialSeekBarState();
+  _RadialProgressBarState createState() => _RadialProgressBarState();
 }
 
-class _RadialSeekBarState extends State<RadialSeekBar> {
+class _RadialProgressBarState extends State<RadialProgressBar> {
 
   EdgeInsets _insetsForPainter() {
     final outerThickness = max(
@@ -242,3 +224,95 @@ class RadialSeekBarPainter extends CustomPainter {
     return true;
   }
 }
+
+class RadialSeekBar extends StatefulWidget {
+
+  final double seekPercent;
+
+  RadialSeekBar({
+    this.seekPercent = 0.0
+  });
+
+  @override
+  _RadialSeekBarState createState() => _RadialSeekBarState();
+}
+
+class _RadialSeekBarState extends State<RadialSeekBar> {
+
+  double _seekPercent = 0.0;
+  PolarCoord _startDragCoord;
+  double _startDragPercent;
+  double _currentDragPercent;
+
+  @override
+  void initState() {
+    super.initState();
+    _seekPercent = widget.seekPercent;
+  }
+
+
+  @override
+  void didUpdateWidget(RadialSeekBar oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    _seekPercent = widget.seekPercent;
+  }
+
+  void _onDragStart(PolarCoord coord) {
+    _startDragCoord = coord;
+    _startDragPercent = _seekPercent;
+  }
+
+  void _onDragUpdate(PolarCoord coord) {
+    final dragAngle = coord.angle - _startDragCoord.angle;
+    final dragPercent = dragAngle / (2 * pi);
+
+    setState(() {
+      _currentDragPercent = (_startDragPercent + dragPercent) % 1.0;
+    });
+  }
+
+  void _onDragEnd() {
+    setState(() {
+      _seekPercent = _currentDragPercent;
+      _currentDragPercent = null;
+      _startDragCoord = null;
+      _startDragPercent = 0.0;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return RadialDragGestureDetector(
+      onRadialDragStart: _onDragStart,
+      onRadialDragUpdate: _onDragUpdate,
+      onRadialDragEnd: _onDragEnd,
+      child: Container(
+        width: double.infinity,
+        height: double.infinity,
+        color: Colors.transparent,
+        child: Center(
+          child: Container(
+            width: 140.0,
+            height: 140.0,
+            child: RadialProgressBar(
+              trackColor: const Color(0xFFDDDDDD),
+              progressPercent: _currentDragPercent ?? _seekPercent,
+              progressColor: accentColor,
+              thumbPosition: _currentDragPercent ?? _seekPercent,
+              thumbColor: lightAccentColor,
+              innerPadding: const EdgeInsets.all(10.0),
+              child: ClipOval(
+                clipper: CircleClipper(),
+                child: Image.network(
+                  demoPlaylist.songs[0].albumArtUrl,
+                  fit: BoxFit.cover,
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
